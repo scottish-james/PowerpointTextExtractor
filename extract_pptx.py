@@ -1,58 +1,58 @@
 #!/usr/bin/env python3
 """
-extract_pptx.py — Extract text from PowerPoint files as markdown.
+extract_pptx.py — Extract text from files as markdown.
+
+Accepts a file as a BytesIO stream from a Flask request.
+PowerPoint files use the full XML processing pipeline.
+All other file types are handled by MarkItDown.
 
 Usage:
-    python extract_pptx.py presentation.pptx
-    python extract_pptx.py presentation.pptx -o output.md
-    python extract_pptx.py presentation.pptx --summary
+    from extract_pptx import extract_to_markdown
+    markdown = extract_to_markdown(file_bytes, filename)
 """
 
-import argparse
 import sys
 import os
+from io import BytesIO
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(SCRIPT_DIR, "src")
 sys.path.insert(0, SRC_DIR)
 
 from powerpoint import convert_pptx_to_markdown_enhanced, process_powerpoint_file
+from markitdown import MarkItDown
 
+POWERPOINT_EXTENSIONS = {'.pptx', '.ppt'}
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Extract text from a PowerPoint file as markdown."
-    )
-    parser.add_argument("file", help="Path to the .pptx file")
-    parser.add_argument("-o", "--output", help="Write output to this file instead of the default")
-    parser.add_argument("--summary", action="store_true", help="Print processing summary with metadata")
-    args = parser.parse_args()
+claud
+def extract_to_markdown(file_bytes: BytesIO, filename: str) -> str:
+    """
+    Convert an uploaded file to markdown.
 
-    if not os.path.isfile(args.file):
-        print(f"Error: '{args.file}' not found.", file=sys.stderr)
-        sys.exit(1)
+    Args:
+        file_bytes: File contents as a BytesIO stream from a Flask request.
+        filename: Original filename, used to determine file type.
 
-    # Default output: same name and location as input, with .md extension
-    output_path = args.output or os.path.splitext(args.file)[0] + ".md"
+    Returns:
+        Markdown string.
+    """
+    ext = os.path.splitext(filename)[1].lower()
 
-    if args.summary:
-        result = process_powerpoint_file(args.file, output_format="markdown")
-        markdown = result["content"]
-        method = result.get("processing_method", "unknown")
-        metadata = result.get("metadata", {})
-
-        print(f"Processing method: {method}")
-        if metadata:
-            print(f"Slide count: {metadata.get('slide_count', 'N/A')}")
-            print(f"Title: {metadata.get('title', 'N/A')}")
-        print("---")
+    if ext in POWERPOINT_EXTENSIONS:
+        return convert_pptx_to_markdown_enhanced(file_bytes)
     else:
-        markdown = convert_pptx_to_markdown_enhanced(args.file)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(markdown)
-    print(f"Written to {output_path}")
+        return _convert_with_markitdown(file_bytes, filename)
 
 
-if __name__ == "__main__":
-    main()
+def _convert_with_markitdown(file_bytes: BytesIO, filename: str) -> str:
+    """Convert a non-PowerPoint file to markdown using MarkItDown."""
+    md = MarkItDown()
+    result = md.convert(file_bytes, filename=filename)
+
+    try:
+        return result.markdown
+    except AttributeError:
+        try:
+            return result.text_content
+        except AttributeError:
+            raise Exception("MarkItDown returned an unrecognised result format.")
